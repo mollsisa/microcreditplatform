@@ -32,6 +32,12 @@ builder.Services.AddMassTransit(x =>
         cfg.UseMessageRetry(r => r.Exponential(5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
         cfg.UseInMemoryOutbox();
     });
+    x.AddConsumer<CustomerRegisteredConsumer>(cfg =>
+    {
+        cfg.UseMessageRetry(r => r.Exponential(5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+        cfg.UseInMemoryOutbox();
+    });
+
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -125,5 +131,14 @@ class CardIssuanceFailedConsumer(AppDbContext db) : IConsumer<CardIssuanceFailed
         if (c is null) return;
         c.Status = "CARD_FAILED";
         await db.SaveChangesAsync();
+    }
+}
+
+class CustomerRegisteredConsumer : IConsumer<CustomerRegistered>
+{
+    public Task Consume(ConsumeContext<CustomerRegistered> ctx)
+    {
+        Console.WriteLine($"Cliente registrato: {ctx.Message.Name} ({ctx.Message.CustomerId})");
+        return Task.CompletedTask;
     }
 }
