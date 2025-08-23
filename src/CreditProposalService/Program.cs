@@ -1,44 +1,48 @@
+using Contracts.Messages;
+using MassTransit;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+
+    x.AddConsumer<CreditProposalRequestedConsumer>(cfg =>
+    {
+        cfg.UseMessageRetry(r => r.Exponential(5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)));
+        cfg.UseInMemoryOutbox();
+    });
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RABBIT__HOST"] ?? "localhost", "/", h =>
+        {
+            h.Username(builder.Configuration["RABBIT__USER"] ?? "guest");
+            h.Password(builder.Configuration["RABBIT__PASS"] ?? "guest");
+        });
+        cfg.ConfigureEndpoints(context);
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.UseSwagger(); app.UseSwaggerUI();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+app.MapGet("/health", () => "ok");
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+class CreditProposalRequestedConsumer : IConsumer<CreditProposalRequested>
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public async Task Consume(ConsumeContext<CreditProposalRequested> ctx)
+    {
+        // Regras mockadas: como não possuo uma regra de aprovação no desafio, apenas considerei que será sempre aprovada.
+        var approved = true;
+        if (approved)
+            await ctx.Publish(new CreditProposalApproved(ctx.Message.CustomerId, Limit: 3000m));
+        else
+            await ctx.Publish(new CreditProposalRejected(ctx.Message.CustomerId, "Rejected by rule"));
+    }
 }
