@@ -33,17 +33,17 @@ Cada microsserviço está em uma pasta separada:
 
 ```bash
 cd src/CustomerService
-dotnet run --urls http://locashost:5080
+dotnet run --urls http://localhost:5080
 ```
 
 ```bash
 cd src/CreditProposalSerice
-dotnet run --urls http://locashost:5081
+dotnet run --urls http://localhost:5081
 ```
 
 ```bash
 cd src/CreditCardService
-dotnet run --urls http://locashost:5082
+dotnet run --urls http://localhost:5082
 ```
 
 ### 4. Testando
