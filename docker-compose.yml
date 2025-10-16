@@ -1,0 +1,73 @@
+version: '3.9'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: customersgb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+  customerservice:
+    build:
+      context: ./CustomerService
+      dockerfile: Dockerfile
+    container_name: customerservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=customersgb;Username=admin;Password=admin
+      - RabbitMQ__Host=rabbitmq
+    ports:
+      - "5001:80"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  creditcardservice:
+    build:
+      context: ./CreditCardService
+      dockerfile: Dockerfile
+    container_name: creditcardservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=customersgb;Username=admin;Password=admin
+      - RabbitMQ__Host=rabbitmq
+    ports:
+      - "5002:80"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  creditproposalservice:
+    build:
+      context: ./CreditProposalService
+      dockerfile: Dockerfile
+    container_name: creditproposalservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=customersgb;Username=admin;Password=admin
+      - RabbitMQ__Host=rabbitmq
+    ports:
+      - "5003:80"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+volumes:
+  postgres_data:
